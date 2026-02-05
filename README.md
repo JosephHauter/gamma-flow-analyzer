@@ -1,4 +1,5 @@
 🦅 TITAN Guardian — SPX Gamma Exposure Intelligence Engine
+<img width="735" height="404" alt="image" src="https://github.com/user-attachments/assets/4bdc2544-e43d-49c6-ba0a-dd0c4f22c087" />
 
 TITAN Guardian is a real-time SPX Gamma Exposure (GEX) analysis and strategy engine that converts live options data into actionable intraday trade context and delivers it directly to Discord with charts, alerts, and regime-aware strategy suggestions.
 
