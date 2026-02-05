@@ -12,318 +12,296 @@ TITAN Guardian continuously:
 Pulls live SPY options chain data
 
 Converts it into a synthetic SPX options surface
+[//]: # (Title)
+# 🦅 TITAN Guardian — SPX Gamma Exposure Intelligence Engine
 
-Calculates Greeks at scale (Gamma, Delta, Vanna, Charm)
+TITAN Guardian is a real-time SPX Gamma Exposure (GEX) analysis and strategy engine that converts live options data into actionable intraday trade context and delivers it directly to Discord with charts, alerts, and regime-aware strategy suggestions.
 
-Builds exposure profiles by strike
+This is not a dashboard — it's a decision engine designed for 0DTE / intraday SPX traders.
 
-Identifies:
+## 🚀 What this project does
 
-🧱 Call Walls
+TITAN Guardian continuously:
 
-🧱 Put Walls
+- pulls live SPY options chain data
+- converts it into a synthetic SPX options surface
+- calculates Greeks at scale (Gamma, Delta, Vanna, Charm)
+- builds exposure profiles by strike
+- identifies call walls, put walls and the gamma magnet (zero-crossing)
+- classifies market regime (long vs short gamma)
+- sends structured Discord alerts, multi-panel exposure charts and context-aware strategy guidance
 
-🧲 Gamma Magnet (zero-crossing)
+All of the above runs automatically during market hours.
 
-🧠 Market regime (long vs short gamma)
-
-Sends:
-
-Structured Discord alerts
-
-Multi-panel exposure charts
-
-Context-aware strategy guidance
-
-All of this runs automatically during market hours.
-
-🧠 Core Concepts (Why This Exists)
+## 🧠 Core concepts (why this exists)
 
 Most traders:
 
-Look at static GEX levels
+- look at static GEX levels
+- ignore time decay
+- miss late-day gamma collapse
+- don’t adjust for SPX / SPY basis
 
-Ignore time decay
+TITAN fixes those gaps.
 
-Miss late-day gamma collapse
+Key philosophy:
 
-Don’t adjust for SPX / SPY basis
+- Gamma is dynamic
+- Walls move
+- Late-day ≠ morning
+- SPX ≠ SPY × 10 (without correction)
 
-TITAN fixes that.
+This project explicitly models those realities.
 
-Key Philosophy
+## ⚙️ System architecture
 
-Gamma is dynamic
-
-Walls move
-
-Late-day ≠ morning
-
-SPX ≠ SPY × 10 (without correction)
-
-This engine explicitly models those realities.
-
-⚙️ System Architecture
 SPY Options Chain (yfinance)
-        ↓
-Synthetic SPX Price Engine
-        ↓
-Greek Calculation Engine
-        ↓
-Exposure Aggregation by Strike
-        ↓
-Wall / Magnet Detection
-        ↓
-Market Regime Classification
-        ↓
-Strategy Recommendation
-        ↓
-Discord Alerts + Charts
+→ Synthetic SPX Price Engine
+→ Greek Calculation Engine
+→ Exposure Aggregation by Strike
+→ Wall / Magnet Detection
+→ Market Regime Classification
+→ Strategy Recommendation
+→ Discord Alerts + Charts
 
-🔧 Major Components Explained
-1️⃣ Basis Engine (SPX / SPY Price Fix)
+## 🔧 Major components explained
+
+### 1) Basis Engine (SPX / SPY price fix)
 
 SPX does not equal SPY × 10.
 
 This engine:
 
-Pulls recent SPY & SPX closes
+- pulls recent SPY & SPX closes
+- calculates the cost-of-carry basis
+- applies it to all live pricing
 
-Calculates the cost-of-carry basis
+Example (concept):
 
-Applies it to all live pricing
-
+```
 live_spx_proxy = (live_spy * 10) + BASIS_OFFSET
-
+```
 
 This prevents misaligned walls and fake magnets.
 
-2️⃣ Dynamic Time-to-Expiry Engine
+### 2) Dynamic time-to-expiry engine
 
 Instead of assuming a static expiry:
 
-Time to expiry updates every scan
+- time to expiry updates every scan
+- correctly reflects 0DTE decay
+- automatically returns 0 after market close
 
-Correctly reflects 0DTE decay
+This is critical for handling gamma explosion near close and charm acceleration late in the day.
 
-Automatically returns 0 after market close
+### 3) Greek calculation engine
 
-This is critical for:
-
-Gamma explosion near close
-
-Charm acceleration late day
-
-3️⃣ Greek Calculation Engine
-
-For every relevant strike, TITAN computes:
-
-Delta
-
-Gamma
-
-Vanna
-
-Charm
-
-Using a Black-Scholes framework with:
-
-Dividend adjustment
-
-Interest rate input
-
-Intraday time decay
+For every relevant strike, TITAN computes Delta, Gamma, Vanna and Charm using a Black–Scholes framework with dividend adjustment, interest rate input and intraday time decay.
 
 A late-day gamma clamp prevents mathematical blow-ups in the final hour.
 
-4️⃣ Exposure Engine
+### 4) Exposure engine
 
 Each Greek is converted into dollar exposure:
 
-Metric	Meaning
-GEX	Gamma Exposure (pinning vs acceleration)
-DEX	Delta Exposure (directional pressure)
-VEX	Vanna Exposure (volatility-price interaction)
-CEX	Charm Exposure (dealer delta decay)
+| Metric | Meaning |
+|--------|---------|
+| GEX | Gamma Exposure (pinning vs acceleration) |
+| DEX | Delta Exposure (directional pressure) |
+| VEX | Vanna Exposure (volatility-price interaction) |
+| CEX | Charm Exposure (dealer delta decay) |
 
 Put exposure is signed negative to preserve directionality.
 
-5️⃣ Adaptive Strike Window (Late-Day Fix)
+### 5) Adaptive strike window (late-day fix)
 
-After 2:00 PM EST:
+After 2:00 PM EST the strike range narrows aggressively. Focus shifts from global walls to local combat and magnet detection becomes tighter. This prevents irrelevant far-OTM walls from polluting late-day signals.
 
-Strike range narrows aggressively
+### 6) Wall detection logic
 
-Focus shifts from global walls → local combat
+- Call Wall = strike with max positive GEX
+- Put Wall = strike with max negative GEX
+- Strength is expressed as % of total absolute GEX
 
-Magnet detection becomes tighter
+Dominance example:
 
-This prevents irrelevant far-OTM walls from polluting late-day signals.
+- 🐮 Bulls +2.4x
+- 🐻 Bears +1.8x
 
-6️⃣ Wall Detection Logic
+### 7) Gamma magnet detection
 
-Call Wall = strike with max positive GEX
+The Gamma Magnet is identified where GEX flips from negative → positive. The closest valid zero-crossing to price wins. This often marks pinning behavior, chop centers and reversion targets.
 
-Put Wall = strike with max negative GEX
-
-Strength is expressed as % of total absolute GEX
-
-Dominance label example:
-
-🐮 Bulls +2.4x
-🐻 Bears +1.8x
-
-7️⃣ Gamma Magnet Detection
-
-The Gamma Magnet is identified where:
-
-GEX flips from negative → positive
-
-Closest valid zero-crossing to price wins
-
-This often marks:
-
-Pinning behavior
-
-Chop centers
-
-Reversion targets
-
-8️⃣ Market Regime Engine
+### 8) Market regime engine
 
 Based on net GEX:
 
-🟢 Long Gamma → mean reversion / range
+- 🟢 Long Gamma → mean reversion / range
+- 🔴 Short Gamma → momentum / expansion
 
-🔴 Short Gamma → momentum / expansion
+The regime directly controls strategy logic.
 
-This regime directly controls strategy logic.
+### 9) Strategy recommendation engine
 
-9️⃣ Strategy Recommendation Engine
-
-TITAN adapts recommendations by:
-
-Time of day
-
-Wall distance
-
-Wall strength
-
-Gamma regime
-
-Trap conditions
+TITAN adapts recommendations by time of day, wall distance, wall strength, gamma regime and trap conditions.
 
 Examples:
 
-🛑 Opening chaos → Wait
+- 🛑 Opening chaos → Wait
+- 🦅 Lunch chop → Iron Condors
+- 🧱 Wall fade → Credit spreads
+- 🚀 Wall break → Momentum
+- ⚡ Short gamma → Directional scalps
 
-🦅 Lunch chop → Iron Condors
+No static strategies — everything is contextual.
 
-🧱 Wall fade → Credit spreads
+## 📊 Visualization engine
 
-🚀 Wall break → Momentum
+Every update includes a 4‑panel chart: Gamma Exposure, Delta Exposure, Vanna Exposure and Charm Exposure, with a current price marker and strike-aligned bars. Charts are dark-mode optimized and auto-uploaded to Discord.
 
-⚡ Short gamma → Directional scalps
+## 🔔 Discord integration
 
-No static strategies. Everything is contextual.
+Required webhooks:
 
-📊 Visualization Engine
+- Main Webhook → signals & charts
+- Error Webhook → crash alerts & startup pings
 
-Every update includes a 4-panel chart:
+On failure the bot sends a 🚨 critical error alert and stops safely. Manual restart is required by design.
 
-Gamma Exposure
+## Quick start
 
-Delta Exposure
+1. Clone the repo:
 
-Vanna Exposure
+```
+git clone <repo-url>
+```
 
-Charm Exposure
+2. Install dependencies:
 
-With:
-
-Current price marker
-
-Strike-aligned bars
-
-Dark-mode optimized visuals
-
-Charts are auto-uploaded to Discord.
-
-🔔 Discord Integration
-Required Webhooks
-
-Main Webhook → signals & charts
-
-Error Webhook → crash alerts & startup pings
-
-On failure, the bot:
-
-Sends a 🚨 critical error alert
-
-Stops safely
-
-Requires manual restart (by design)
-1. git clone this bad boy 😮‍💨
-
-2. Install Dependencies
+```
 pip install -r requirements.txt
+```
 
-3. Create .env
+3. Create a `.env` file with your webhooks:
+
+```
 DISCORD_WEBHOOK_URL=your_main_webhook
 ERROR_WEBHOOK_URL=your_error_webhook
+```
 
-4. Run
-python main.py
+4. Run (choose one):
 
-⏱️ Runtime Behavior
+- On Windows (double-clickable):
 
-Runs every 5 minutes
+```powershell
+.\run_main.bat
+```
 
-Automatically exits after market close
+- From PowerShell / CMD (preferred, runs the package in src):
 
-Designed for intraday only
+```powershell
+python -m titan_guardian
+```
 
-Manual restart required each session
+- Legacy: `python main.py` still works — it runs the package shim.
 
-⚠️ Important Notes
+## Development & Windows (required Python version)
 
-Data comes from yfinance (not tick-perfect)
+This project is developed and tested with Python 3.14.2. Please install Python 3.14.2 and use that interpreter for development and production runs.
 
-This is decision support, not financial advice
+Create and activate a virtual environment (Windows examples):
+
+- Create venv using the Python 3.14 installer / py launcher:
+
+```powershell
+py -3.14 -m venv venv
+```
+
+- Install dependencies into the venv:
+
+```powershell
+.\\venv\\Scripts\\Activate.ps1    # PowerShell (may need ExecutionPolicy change)
+py -3.14 -m pip install -r requirements.txt
+```
+
+- Or using CMD:
+
+```cmd
+venv\Scripts\activate.bat
+py -3.14 -m pip install -r requirements.txt
+```
+
+Notes:
+- If you have multiple Python versions, use the `py` launcher with `-3.14` to pick Python 3.14.x. Confirm with `py -3.14 --version` or `python --version` after activation.
+- On some systems the exact `-3.14` alias may vary; if `py -3.14` is not available, use the full executable path to your Python 3.14.2 installation.
+
+Using the Windows launcher (`run_main.bat`)
+
+- Double-click `run_main.bat` in Explorer to run the app using the venv (if present) or system Python.
+- From PowerShell/CMD:
+
+```powershell
+.\run_main.bat
+```
+
+Scheduling the launcher with Task Scheduler (Windows)
+
+1. Open Task Scheduler (Win → type "Task Scheduler").
+2. Select "Create Task..." (not "Create Basic Task...") for full control.
+3. On the "General" tab:
+	- Give it a name (e.g., "TITAN Guardian Runner").
+	- Choose "Run whether user is logged on or not" if you want background execution.
+	- Check "Run with highest privileges" if required.
+4. On the "Triggers" tab: create a trigger (e.g., Daily at market open, or At log on).
+5. On the "Actions" tab: create a new action:
+	- Action: Start a program
+	- Program/script: Browse to the `run_main.bat` file (e.g., `C:\path\to\gamma-flow-analyzer\run_main.bat`).
+	- Start in (optional): the repository folder (e.g., `C:\path\to\gamma-flow-analyzer`).
+6. On "Conditions" / "Settings" set options as desired (for intraday runs you may want to stop the task if it runs longer than X hours).
+7. Save the task. If you selected "Run whether user is logged on or not" you'll be prompted for credentials.
+
+Tips:
+- If your `.bat` relies on the venv, ensure the venv folder path is correct in `run_main.bat` and the account running the task has access to it.
+- Use the Task Scheduler History or log to debug start failures. A common fix is to set the "Start in" field to the repo folder so relative paths resolve correctly.
+
+## ⏱️ Runtime behavior
+
+- Runs every 5 minutes
+- Automatically exits after market close
+- Designed for intraday only (manual restart required each session)
+
+## ⚠️ Important notes
+
+- Data comes from yfinance (not tick-perfect)
+- This is decision support, not financial advice
 
 Best used with:
 
-SPX options
+- SPX options
+- 0DTE strategies
+- Discretionary execution
 
-0DTE strategies
+## 🧩 Who this is for
 
-Discretionary execution
+- ✅ SPX / 0DTE traders
+- ✅ Gamma-aware discretionary traders
+- ✅ Quant-curious retail traders
+- ❌ Long-term investors
+- ❌ Fully automated execution systems
 
-🧩 Who This Is For
+## 🦅 Final thought
 
-✅ SPX / 0DTE traders
-✅ Gamma-aware discretionary traders
-✅ Quant-curious retail traders
-❌ Long-term investors
-❌ Fully automated execution systems
-
-🦅 Final Thought
-
-TITAN Guardian isn’t about predicting price.
-
-It’s about knowing:
-
-Where dealers are trapped
-
-Where price is pinned
-
-When gamma flips
-
-When not to trade
+TITAN Guardian isn’t about predicting price. It’s about knowing where dealers are trapped, where price is pinned, when gamma flips, and when not to trade.
 
 Trade less. Trade smarter.
 
+---
+
 Non A.I text starting here :p -
-Might not update anymore as ive come to more live data and have created a new system which im using for everyday algo trading. This is my old system i thought it would be cool if someone improved upon it or benefited from it! 
-Issue is yahoo data delay of 15 min i believe so its best not to use this as a sniper for trades or long term investments but for knowing where the market is headed in the next 30 min or so.
-DO NOT TRUST this system in the first and final hour of trading day! this is not financial advice use only in paper trading until you build and figure out your own edge!!
+
+Might not update anymore as I've moved to more live data and have created a new system which I'm using for everyday algo trading. This is my old system — I thought it would be cool if someone improved upon it or benefited from it!
+
+Issue: Yahoo data has a ~15 minute delay, so it's best not to use this as a sniper for trades or long-term investments. It's more useful for understanding where the market may head in the next ~30 minutes.
+
+DO NOT TRUST this system in the first and final hour of the trading day! This is not financial advice — use only in paper trading until you build and figure out your own edge.
+Vanna Exposure

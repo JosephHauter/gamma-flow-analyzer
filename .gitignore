@@ -14,10 +14,13 @@ build/
 venv/
 env/
 ENV/
-.env
 .venv
 env.bak/
 venv.bak/
+
+# dotenv files (local secrets)
+.env
+.env.local
 
 # VS Code
 .vscode/
@@ -38,6 +41,25 @@ coverage.xml
 
 # Jupyter Notebook
 .ipynb_checkpoints
+
+# Generated / runtime files
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.pdf
+__pycache__/
+
+# pip / wheel
+*.whl
+pip-log.txt
+
+# PyCharm
+.idea/
+
+# Logs
+logs/
+*.log
 
 # Operating System
 .DS_Store
